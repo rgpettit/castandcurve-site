@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cast &amp; Curve Light Planner</title>
+<meta name="description" content="Plan the light: golden hour, blue hour, moon phase, and a shoot score for any spot.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* Palette matches afterglow.photos: charcoal neutrals, white text, no accent color.
+   Color is reserved for data (scores, light timeline). */
+:root{
+  color-scheme:dark;
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --body:"Lora",Georgia,"Times New Roman",serif;
+  --bg:#1c1c1c;--panel:#262626;--panel2:#303030;--line:#3d3d3d;
+  --text:#f3f3f3;--muted:#a9a9a9;--accent:#f3f3f3;
+  --good:#6fcf97;--fair:#b7d968;--maybe:#e5c15a;--bad:#ee7b78;
+  --night:#0e0e0e;--blue:#4a6ea8;--glow:#c46b86;--golden:#d9a441;--day:#86a6bf;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 var(--body)}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 48px}
+header h1{margin:0;font:400 2.4rem/1.15 var(--serif);letter-spacing:.01em}
+header h1 span{font-style:italic}
+header p{margin:.3rem 0 1.4rem;color:var(--muted);font-style:italic}
+h2,.card h3{font-family:var(--serif)}
+.tips{margin:0;padding:0;list-style:none}
+.tips li{padding:8px 0;border-top:1px solid var(--line);font-size:.95rem}
+.tips li:first-child{border-top:0}
+.tips b{font-weight:600}
+.tipgroup{margin:14px 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.tipgroup:first-child{margin-top:0}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.photos figure{margin:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.photos img{display:block;width:100%;height:150px;object-fit:cover;background:#111}
+.photos figcaption{padding:8px 10px;font-size:.8rem;color:var(--muted);line-height:1.4}
+.photos figcaption strong{display:block;color:var(--text);font-weight:600;font-size:.85rem}
+.photos a{color:inherit}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.row+.row{margin-top:12px}
+.grow{flex:1 1 220px}
+input,select,button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px}
+input,select{width:100%}
+button{cursor:pointer;background:var(--panel2)}
+button:hover{border-color:var(--accent)}
+button.primary{background:transparent;color:var(--text);border:1px solid var(--accent);font-weight:500}
+button.primary:hover{background:var(--accent);color:#1c1c1c}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#status{min-height:1.4em;color:var(--muted);font-size:.9rem;margin:0 0 12px}
+#results{list-style:none;margin:8px 0 0;padding:0}
+#results li button{width:100%;text-align:left;margin-top:6px}
+h2{font-size:1.15rem;margin:0 0 4px}
+.sub{color:var(--muted);font-size:.9rem;margin:0 0 12px}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:600px){.scores{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h3{margin:0;font-size:1rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.big{display:flex;align-items:baseline;gap:10px;margin:6px 0 2px}
+.big .n{font-size:2.8rem;font-weight:700;line-height:1}
+.big .l{font-size:1.05rem;font-weight:600}
+.kv{margin:10px 0 0;padding:0;list-style:none;font-size:.95rem}
+.kv li{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-top:1px solid var(--line)}
+.kv li span:first-child{color:var(--muted)}
+.tl{position:relative;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--line);display:flex}
+.tl div{height:100%}
+.ticks{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:.85rem;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;border:1px solid var(--line)}
+.windows{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;margin-top:12px;font-size:.92rem}
+@media(max-width:600px){.windows{grid-template-columns:1fr}}
+.windows div{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding:4px 0}
+.windows div span:first-child{color:var(--muted)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+@media(max-width:600px){.week{grid-template-columns:repeat(4,1fr)}}
+.day{padding:8px 4px;text-align:center;font-size:.8rem;line-height:1.3}
+.day b{display:block;font-size:.85rem}
+.day[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.pill{display:block;margin-top:4px;border-radius:6px;padding:1px 0;color:#10131f;font-weight:700}
+.pill small{font-weight:600;font-size:.68rem;opacity:.85}
+.moon{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.moon svg{flex:0 0 auto}
+.moon ul{flex:1 1 220px;margin:0}
+.foot{color:var(--muted);font-size:.8rem;margin-top:20px}
+.foot a{color:var(--muted)}
+.sr{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Cast &amp; Curve <span>Light Planner</span></h1>
+  <p>Plan the light. Golden hour, blue hour, moon, and a shoot score for any spot.</p>
+</header>
+
+<section class="panel" aria-label="Choose place and date">
+  <form id="searchForm" autocomplete="off">
+    <div class="row">
+      <div class="grow"><label for="q">Search a place</label>
+        <input id="q" type="search" placeholder="Park, overlook, town..."></div>
+      <button class="primary" type="submit">Search</button>
+    </div>
+  </form>
+  <ul id="results"></ul>
+  <div class="row">
+    <div class="grow"><label for="preset">Or pick a favorite spot</label>
+      <select id="preset"></select></div>
+    <button id="geo" type="button">Use my location</button>
+  </div>
+  <div class="row">
+    <div><label for="date">Date</label><input id="date" type="date"></div>
+    <button id="today" type="button">Today</button>
+  </div>
+</section>
+
+<p id="status" role="status" aria-live="polite"></p>
+
+<div id="app" hidden>
+  <h2 id="place"></h2>
+  <p class="sub" id="placeSub"></p>
+
+  <div class="scores" id="scores"></div>
+
+  <section class="panel" aria-label="Light timeline">
+    <h2>The day's light</h2>
+    <p class="sub" id="tlSub"></p>
+    <div class="tl" id="tl" role="img" aria-label="Timeline of light through the day"></div>
+    <div class="ticks"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span></div>
+    <div class="legend">
+      <span><i style="background:var(--night)"></i>Night</span>
+      <span><i style="background:var(--blue)"></i>Blue hour</span>
+      <span><i style="background:var(--glow)"></i>Glow (afterglow / dawn)</span>
+      <span><i style="background:var(--golden)"></i>Golden hour</span>
+      <span><i style="background:var(--day)"></i>Daylight</span>
+    </div>
+    <div class="windows" id="windows"></div>
+  </section>
+
+  <section class="panel" aria-label="Next seven days">
+    <h2>Next 7 days</h2>
+    <p class="sub">Sunrise and sunset scores. Tap a day to see details.</p>
+    <div class="week" id="week"></div>
+  </section>
+
+  <section class="panel" aria-label="Moon">
+    <h2>Moon</h2>
+    <div class="moon" id="moon"></div>
+  </section>
+
+  <section class="panel" aria-label="Composition suggestions">
+    <h2>Composition ideas</h2>
+    <p class="sub">Based on this spot and the light and sky for the selected day.</p>
+    <div id="tips"></div>
+  </section>
+
+  <section class="panel" aria-label="Example photos">
+    <h2>Photos from here</h2>
+    <p class="sub" id="photosSub"></p>
+    <div class="photos" id="photos"></div>
+  </section>
+</div>
+
+<p class="foot">Sun and moon positions are calculated in your browser (SunCalc algorithm by Vladimir Agafonkin, BSD-2). Forecasts from the US National Weather Service. Place search by OpenStreetMap Nominatim. Example photos are free-licensed images from Wikimedia Commons and Flickr, credited to their photographers, plus Flickr photos found through Openverse.<span id="flickrCredit"></span> The shoot score is a rule of thumb: partly cloudy skies with little rain chance score best. Always check conditions and access before you go.</p>
+</div>
+
+<script>
+"use strict";
+/* ---------- Sun and moon math (SunCalc algorithm, BSD-2, Vladimir Agafonkin) ---------- */
+const RAD=Math.PI/180, DAYMS=864e5, J1970=2440588, J2000=2451545, OBL=RAD*23.4397, J0=0.0009;
+const {sin,cos,tan,asin,acos,atan2,PI}=Math;
+const toDays=d=>d.valueOf()/DAYMS-0.5+J1970-J2000;
+const fromJ=j=>new Date((j+0.5-J1970)*DAYMS);
+const rightAsc=(l,b)=>atan2(sin(l)*cos(OBL)-tan(b)*sin(OBL),cos(l));
+const decl=(l,b)=>asin(sin(b)*cos(OBL)+cos(b)*sin(OBL)*sin(l));
+const azim=(H,phi,dec)=>atan2(sin(H),cos(H)*sin(phi)-tan(dec)*cos(phi));
+const altit=(H,phi,dec)=>asin(sin(phi)*sin(dec)+cos(phi)*cos(dec)*cos(H));
+const sidereal=(d,lw)=>RAD*(280.16+360.9856235*d)-lw;
+const solarM=d=>RAD*(357.5291+0.98560028*d);
+const eclLong=M=>M+RAD*(1.9148*sin(M)+0.02*sin(2*M)+0.0003*sin(3*M))+RAD*102.9372+PI;
+function sunCoords(d){const L=eclLong(solarM(d));return{dec:decl(L,0),ra:rightAsc(L,0)};}
+function sunAzimuthDeg(date,lat,lng){ // degrees clockwise from north
+  const lw=RAD*-lng,phi=RAD*lat,d=toDays(date),c=sunCoords(d),H=sidereal(d,lw)-c.ra;
+  return (azim(H,phi,c.dec)/RAD+180+360)%360;
+}
+/* angleDeg = sun altitude. Returns {rise,set} Dates or null (polar day/night). */
+function sunEvent(date,lat,lng,angleDeg){
+  const lw=RAD*-lng,phi=RAD*lat,d=toDays(date);
+  const n=Math.round(d-J0-lw/(2*PI)), ds=J0+lw/(2*PI)+n;
+  const M=solarM(ds),L=eclLong(M),dec=decl(L,0);
+  const Jnoon=J2000+ds+0.0053*sin(M)-0.0069*sin(2*L);
+  const x=(sin(angleDeg*RAD)-sin(phi)*sin(dec))/(cos(phi)*cos(dec));
+  if(x<-1||x>1)return null;
+  const a=J0+(acos(x)+lw)/(2*PI)+n;
+  const Jset=J2000+a+0.0053*sin(M)-0.0069*sin(2*L);
+  return{rise:fromJ(Jnoon-(Jset-Jnoon)),set:fromJ(Jset),noon:fromJ(Jnoon)};
+}
+function moonCoords(d){
+  const L=RAD*(218.316+13.176396*d),M=RAD*(134.963+13.064993*d),F=RAD*(93.272+13.229350*d);
+  const l=L+RAD*6.289*sin(M),b=RAD*5.128*sin(F);
+  return{ra:rightAsc(l,b),dec:decl(l,b),dist:385001-20905*cos(M)};
+}
+function moonAlt(date,lat,lng){
+  const lw=RAD*-lng,phi=RAD*lat,d=toDays(date),c=moonCoords(d);
+  return altit(sidereal(d,lw)-c.ra,phi,c.dec)/RAD;
+}
+function moonIllum(date){
+  const d=toDays(date),s=sunCoords(d),m=moonCoords(d),sdist=149598000;
+  const phi=acos(sin(s.dec)*sin(m.dec)+cos(s.dec)*cos(m.dec)*cos(s.ra-m.ra));
+  const inc=atan2(sdist*sin(phi),m.dist-sdist*cos(phi));
+  const angle=atan2(cos(s.dec)*sin(s.ra-m.ra),sin(s.dec)*cos(m.dec)-cos(s.dec)*sin(m.dec)*cos(s.ra-m.ra));
+  return{fraction:(1+cos(inc))/2,phase:0.5+0.5*inc*(angle<0?-1:1)/PI};
+}
+/* Moon rise/set within the 24h window starting at t0, scanning every 10 minutes. */
+function moonEvents(t0,lat,lng){
+  const out={rise:null,set:null};let prev=moonAlt(t0,lat,lng)-0.125,pt=t0.getTime();
+  for(let i=1;i<=144;i++){
+    const t=t0.getTime()+i*600000,cur=moonAlt(new Date(t),lat,lng)-0.125;
+    if(prev<0&&cur>=0&&!out.rise)out.rise=new Date(pt+(0-prev)/(cur-prev)*600000);
+    if(prev>=0&&cur<0&&!out.set)out.set=new Date(pt+(prev)/(prev-cur)*600000);
+    prev=cur;pt=t;
+  }
+  return out;
+}
+function phaseName(p){
+  if(p<0.03||p>=0.97)return"New Moon";if(p<0.22)return"Waxing Crescent";if(p<0.28)return"First Quarter";
+  if(p<0.47)return"Waxing Gibbous";if(p<0.53)return"Full Moon";if(p<0.72)return"Waning Gibbous";
+  if(p<0.78)return"Last Quarter";return"Waning Crescent";
+}
+function moonSvg(p,size){
+  const r=size/2-2,c=size/2,k=Math.cos(2*PI*p),rx=Math.abs(k)*r;
+  const waxing=p<0.5;
+  const side=waxing?1:0;                       // sweep of the outer limb
+  const tSweep=waxing?(k>0?0:1):(k>0?1:0);     // sweep of the terminator
+  const lit=`M ${c} ${c-r} A ${r} ${r} 0 0 ${side} ${c} ${c+r} A ${rx} ${r} 0 0 ${tSweep} ${c} ${c-r} Z`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="Moon phase">
+    <circle cx="${c}" cy="${c}" r="${r}" fill="#1b2140" stroke="#3a4470"/>
+    <path d="${lit}" fill="#f1ecd9"/></svg>`;
+}
+
+/* ---------- Time helpers ---------- */
+const pad=n=>String(n).padStart(2,"0");
+const fmtT=(d,tz)=>d?new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"2-digit",timeZone:tz}).format(d):"n/a";
+function minsOfDay(d,tz){
+  const p=new Intl.DateTimeFormat("en-US",{hour:"numeric",minute:"numeric",hourCycle:"h23",timeZone:tz}).formatToParts(d);
+  return (+p.find(x=>x.type==="hour").value%24)*60+ +p.find(x=>x.type==="minute").value;
+}
+const todayIn=tz=>new Intl.DateTimeFormat("en-CA",{timeZone:tz}).format(new Date());
+function addDays(s,n){const[y,m,d]=s.split("-").map(Number);const t=new Date(Date.UTC(y,m-1,d+n));return`${t.getUTCFullYear()}-${pad(t.getUTCMonth()+1)}-${pad(t.getUTCDate())}`;}
+function noonFor(s,lng){const[y,m,d]=s.split("-").map(Number);return new Date(Date.UTC(y,m-1,d,12)-lng/15*3600000);} // local solar noon, approx
+const COMPASS=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+const compass=deg=>`${COMPASS[Math.round(deg/22.5)%16]} ${Math.round(deg)}°`;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- Day light windows ---------- */
+function dayTimes(noon,lat,lng){
+  const sr=sunEvent(noon,lat,lng,-0.833),g=sunEvent(noon,lat,lng,6),d4=sunEvent(noon,lat,lng,-4),d8=sunEvent(noon,lat,lng,-8);
+  if(!sr||!g||!d4||!d8)return null;
+  return{sunrise:sr.rise,sunset:sr.set,goldenAmEnd:g.rise,goldenPmStart:g.set,
+    glowAmStart:d4.rise,glowPmEnd:d4.set,blueAmStart:d8.rise,bluePmEnd:d8.set};
+}
+
+/* ---------- Weather (NWS gridpoint data) ---------- */
+function parseDur(p){const m=/^P(?:(\d+)D)?(?:T(?:(\d+)H)?)?$/.exec(p)||[];return(((+m[1]||0)*24)+(+m[2]||0))*3600000||3600000;}
+function parseSeries(s){return((s&&s.values)||[]).map(v=>{const[a,b]=v.validTime.split("/");const st=new Date(a).getTime();return{st,en:st+parseDur(b),v:v.value};});}
+const seriesAt=(ser,t)=>{const x=ser.find(e=>t>=e.st&&t<e.en);return x?x.v:null;};
+
+/* Rule of thumb: partly cloudy is best (color-catching clouds), overcast or rain is poor. */
+function scoreEvent(when){
+  if(!S.wx||!when)return null;
+  const t=when.getTime(),sky=seriesAt(S.wx.sky,t),pop=seriesAt(S.wx.pop,t);
+  if(sky==null)return null;
+  let base=sky<=50?55+(sky/50)*45:100-(sky-50)*1.9;
+  base*=1-((pop||0)/100)*0.8;
+  const score=Math.max(0,Math.min(100,Math.round(base)));
+  const label=score>=75?"Go shoot it":score>=55?"Promising":score>=35?"Maybe":"Skip it";
+  return{score,label,sky:Math.round(sky),pop:Math.round(pop||0)};
+}
+const scoreColor=s=>s>=75?"var(--good)":s>=55?"var(--fair)":s>=35?"var(--maybe)":"var(--bad)";
+
+/* ---------- State + data loading ---------- */
+const S={lat:null,lng:null,name:"",tz:Intl.DateTimeFormat().resolvedOptions().timeZone,wx:null,date:null,tzNote:"",placeTips:[],photos:undefined,photoReq:0,photoErr:""};
+/* Curated spot notes. Written from general knowledge, so verify access, hours, and permits before you go. */
+const PRESETS=[
+  {n:"Skyline Drive, Shenandoah NP (VA)",lat:38.5340,lng:-78.3490,tips:[
+    ["West-facing overlooks","Overlooks on the valley side (Jewell Hollow is a popular one) work for sunset over the Shenandoah Valley."],
+    ["Layered ridges","On hazy or foggy mornings, shoot toward the ridgelines with a long lens to stack the layers. Fog in the valleys looks best from higher overlooks."],
+    ["Big Meadows","Open meadow with foreground grass and wildflowers. Deer are common at dawn and dusk, so keep a respectful distance."],
+    ["Plan around the gates","Skyline Drive is a fee area and has seasonal closures. Check current road status before a pre-dawn drive."]]},
+  {n:"Great Falls Park (VA)",lat:38.9986,lng:-77.2537,tips:[
+    ["Long exposure water","Use an ND filter and a tripod for silky water, 0.5 to 2 seconds for texture or longer for smooth."],
+    ["Overlooks","The overlooks are fixed viewpoints, so scout ahead and use the rails and rocks as leading lines."],
+    ["Check park hours","The park is generally open sunrise to sunset, so plan for golden hour and not blue hour. Confirm current hours."]]},
+  {n:"Dolly Sods Wilderness (WV)",lat:39.0850,lng:-79.3130,tips:[
+    ["Bear Rocks","A popular sunrise and sunset spot with rock outcrops for foreground and wide open views."],
+    ["Wind-sculpted spruce","The bent red spruce make strong solitary subjects. Isolate one against the sky."],
+    ["Weather turns fast","Elevation is around 4,000 feet, so bring layers and a rain cover, and expect fog and wind."],
+    ["Fall color","Blueberry and heath turn red in early autumn, which pairs well with low warm light."]]},
+  {n:"Blue Ridge Parkway, Craggy Gardens (NC)",lat:35.7000,lng:-82.3770,tips:[
+    ["Craggy Pinnacle","A short hike to a 360 degree summit for sunrise or sunset. Arrive early to set up before the light."],
+    ["Layered mountains","Ridge after ridge fades to blue with distance. Shoot into the light on hazy mornings."],
+    ["Seasonal bloom and color","Rhododendron typically blooms in June, and fall color follows in October."],
+    ["Parkway closures","Sections of the Parkway can close for weather or maintenance. Check status before you drive up."]]},
+  {n:"Assateague Island (MD)",lat:38.2400,lng:-75.1500,tips:[
+    ["Sunrise over the ocean","The beach faces east, so sunrise over the surf is the classic shot. Use wet sand reflections for foreground."],
+    ["Bayside sunset","The bay side faces west across marsh and water, good for reflections at sunset."],
+    ["Wild horses","Keep at least 40 feet away and use a long lens. Include the horses small in a big landscape for a stronger image."],
+    ["Bugs and wind","Summer brings biting insects. Bring repellent and expect wind on the beach."]]},
+  {n:"Rocky Mountain NP, Bear Lake (CO)",lat:40.3125,lng:-105.6460,tips:[
+    ["Sunrise alpenglow","Early light can hit Hallett Peak and the high ridges. Calm water at Bear Lake gives a mirror image."],
+    ["Dream Lake","A short hike beyond Bear Lake with strong foreground rocks and reflections."],
+    ["Check entry rules","The park has used timed entry reservations in busy season. Check requirements, and plan for cold at 9,000+ feet."]]}
+];
+const $=id=>document.getElementById(id);
+const setStatus=m=>{$("status").textContent=m;};
+
+async function loadPlace(lat,lng,name,tips){
+  S.lat=lat;S.lng=lng;S.name=name;S.wx=null;S.tzNote="";S.placeTips=tips||[];S.photos=undefined;
+  setStatus("Loading forecast...");
+  try{
+    const pr=await fetch(`https://api.weather.gov/points/${lat.toFixed(4)},${lng.toFixed(4)}`);
+    if(!pr.ok)throw new Error("points "+pr.status);
+    const pj=(await pr.json()).properties;
+    S.tz=pj.timeZone||S.tz;
+    const gr=await fetch(pj.forecastGridData);
+    if(!gr.ok)throw new Error("grid "+gr.status);
+    const gp=(await gr.json()).properties;
+    S.wx={sky:parseSeries(gp.skyCover),pop:parseSeries(gp.probabilityOfPrecipitation)};
+    setStatus("");
+  }catch(e){
+    S.tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    S.tzNote="Times shown in your browser's time zone.";
+    setStatus("No forecast available for this spot (US only, or the weather service is unreachable). Showing sun and moon times only.");
+  }
+  if(!S.date)S.date=todayIn(S.tz);
+  $("date").value=S.date;
+  render();
+  loadPhotos();
+}
+
+/* ---------- Rendering ---------- */
+function card(title,event,goodWindow,scr){
+  const dir=compass(sunAzimuthDeg(event,S.lat,S.lng));
+  const scoreHtml=scr
+    ?`<div class="big"><span class="n" style="color:${scoreColor(scr.score)}">${scr.score}</span><span class="l">${scr.label}</span></div>
+       <p class="sub" style="margin:0">Sky cover ${scr.sky}%, rain chance ${scr.pop}%</p>`
+    :`<div class="big"><span class="l" style="color:var(--muted)">No forecast for this time</span></div>`;
+  return `<div class="card"><h3>${title}</h3>${scoreHtml}
+    <ul class="kv"><li><span>${title==="Sunrise"?"Sun rises":"Sun sets"}</span><span>${fmtT(event,S.tz)}</span></li>
+    <li><span>Direction</span><span>${dir}</span></li>
+    <li><span>Shoot window</span><span>${goodWindow}</span></li></ul></div>`;
+}
+
+function render(){
+  $("app").hidden=false;
+  $("place").textContent=S.name;
+  $("placeSub").textContent=`${S.lat.toFixed(3)}, ${S.lng.toFixed(3)}  |  ${S.date}  ${S.tzNote}`;
+  const T=dayTimes(noonFor(S.date,S.lng),S.lat,S.lng);
+  if(!T){
+    $("scores").innerHTML=`<div class="card">Sun does not rise or set normally here on this date.</div>`;
+    $("tl").innerHTML="";$("windows").innerHTML="";
+  }else{
+    const win=(a,b)=>`${fmtT(a,S.tz)} - ${fmtT(b,S.tz)}`;
+    $("scores").innerHTML=
+      card("Sunrise",T.sunrise,win(T.blueAmStart,T.goldenAmEnd),scoreEvent(T.sunrise))+
+      card("Sunset",T.sunset,win(T.goldenPmStart,T.bluePmEnd),scoreEvent(T.sunset));
+    // timeline
+    const m=x=>minsOfDay(x,S.tz);
+    const b=[0,m(T.blueAmStart),m(T.glowAmStart),m(T.sunrise),m(T.goldenAmEnd),m(T.goldenPmStart),m(T.sunset),m(T.glowPmEnd),m(T.bluePmEnd),1440];
+    const cols=["--night","--blue","--glow","--golden","--day","--golden","--glow","--blue","--night"];
+    let ok=true;for(let i=1;i<b.length;i++)if(b[i]<b[i-1])ok=false;
+    $("tl").innerHTML=ok?cols.map((c,i)=>`<div style="width:${(b[i+1]-b[i])/14.4}%;background:var(${c})"></div>`).join(""):"";
+    $("tlSub").textContent=ok?"":"Timeline unavailable for this time zone.";
+    const rows=[["Blue hour (morning)",win(T.blueAmStart,T.glowAmStart)],["Dawn glow",win(T.glowAmStart,T.sunrise)],
+      ["Golden hour (morning)",win(T.sunrise,T.goldenAmEnd)],["Golden hour (evening)",win(T.goldenPmStart,T.sunset)],
+      ["Afterglow",win(T.sunset,T.glowPmEnd)],["Blue hour (evening)",win(T.glowPmEnd,T.bluePmEnd)]];
+    $("windows").innerHTML=rows.map(r=>`<div><span>${r[0]}</span><span>${r[1]}</span></div>`).join("");
+    // moon
+    const t0=new Date(noonFor(S.date,S.lng).getTime()-12*3600000);
+    const mi=moonIllum(T.sunset),me=moonEvents(t0,S.lat,S.lng),pct=Math.round(mi.fraction*100);
+    const dark=pct<30?"Good night for stars and Milky Way work":pct<70?"Moon will brighten the sky":"Bright moon, stars washed out";
+    $("moon").innerHTML=moonSvg(mi.phase,84)+`<ul class="kv"><li><span>Phase</span><span>${phaseName(mi.phase)}</span></li>
+      <li><span>Illuminated</span><span>${pct}%</span></li><li><span>Moonrise</span><span>${fmtT(me.rise,S.tz)}</span></li>
+      <li><span>Moonset</span><span>${fmtT(me.set,S.tz)}</span></li><li><span>Night sky</span><span>${dark}</span></li></ul>`;
+    renderTips(T,mi,me);
+  }
+  renderPhotos();
+  // week strip
+  const start=todayIn(S.tz);let html="";
+  for(let i=0;i<7;i++){
+    const ds=addDays(start,i),TT=dayTimes(noonFor(ds,S.lng),S.lat,S.lng);
+    const [y,mo,d]=ds.split("-").map(Number),dt=new Date(Date.UTC(y,mo-1,d,12));
+    const wd=new Intl.DateTimeFormat("en-US",{weekday:"short",timeZone:"UTC"}).format(dt);
+    const pill=(lbl,e)=>{const sc=TT&&scoreEvent(e);return sc?`<span class="pill" style="background:${scoreColor(sc.score)}"><small>${lbl}</small> ${sc.score}</span>`:`<span class="pill" style="background:var(--line);color:var(--muted)"><small>${lbl}</small> --</span>`;};
+    html+=`<button class="day" type="button" data-d="${ds}" aria-pressed="${ds===S.date}"><b>${wd} ${mo}/${d}</b>${pill("AM",TT&&TT.sunrise)}${pill("PM",TT&&TT.sunset)}</button>`;
+  }
+  $("week").innerHTML=html;
+}
+
+/* ---------- Composition tips ---------- */
+function lightTips(T,mi,me){
+  const tips=[],sS=scoreEvent(T.sunset),sR=scoreEvent(T.sunrise);
+  const useRise=sR&&(!sS||sR.score>sS.score);
+  const ev=useRise?T.sunrise:T.sunset,scr=useRise?sR:sS,word=useRise?"sunrise":"sunset";
+  const azEv=sunAzimuthDeg(ev,S.lat,S.lng),opp=(azEv+180)%360;
+  if(scr){
+    if(scr.sky<15)tips.push(["Clear sky",`Color stays low near the horizon. Frame the sky small, put interest in the foreground, and turn away from the sun for soft pastels after ${word}.`]);
+    else if(scr.sky<=70)tips.push(["Partly cloudy",`Best case. Give the sky about two thirds of the frame and stay 20 to 30 minutes ${useRise?"before and after":"after"} ${word}, since clouds often light up after the sun is down.`]);
+    else tips.push(["Heavy cloud",`Skip the big sky. Shoot details, forest, water, or long exposures. Overcast light is soft and good for foliage and waterfalls. Watch for a gap at the horizon near ${word}.`]);
+    if(scr.pop>=40)tips.push(["Rain likely","Protect your gear. Rain clearing near the horizon can bring dramatic light, and a rainbow can appear opposite the sun."]);
+  }else{
+    tips.push(["Sky","No forecast for this time. Check conditions closer to the day, and use the light times above for planning."]);
+  }
+  tips.push([useRise?"Sunrise direction":"Sunset direction",`Sun ${useRise?"rises":"sets"} toward ${compass(azEv)}. Shoot that way for the sun itself, or toward ${compass(opp)} for pastel color and warm light on your subject.`]);
+  tips.push(["Golden hour side light",`Turn about 90 degrees from the sun for warm side light that shows texture. Golden hour ${useRise?"ends":"starts"} around ${fmtT(useRise?T.goldenAmEnd:T.goldenPmStart,S.tz)}.`]);
+  tips.push(["Blue hour",`Use a tripod, low ISO, and 2 to 15 second exposures. ${useRise?"It begins":"It runs until"} about ${fmtT(useRise?T.blueAmStart:T.bluePmEnd,S.tz)}.`]);
+  if(mi.fraction>0.85&&me.rise&&Math.abs(me.rise-T.sunset)<75*60000)tips.push(["Moonrise at sunset","The moon rises near sunset. Try a long lens (200mm or more) on the moon over the landscape a few minutes after it clears the horizon."]);
+  else if(mi.fraction<0.25)tips.push(["Dark night ahead","Thin moon means dark skies. Plan star or Milky Way shots after full darkness, and check moonrise and moonset above."]);
+  tips.push(["Sun in frame","Try f/11 to f/16 for a sunstar, and bracket exposures to hold detail in the shadows and the sky."]);
+  return tips;
+}
+function renderTips(T,mi,me){
+  const item=t=>`<li><b>${esc(t[0])}.</b> ${esc(t[1])}</li>`;
+  let html="";
+  if(S.placeTips.length)html+=`<p class="tipgroup">At this spot</p><ul class="tips">${S.placeTips.map(item).join("")}</ul>`;
+  html+=`<p class="tipgroup">For this light</p><ul class="tips">${lightTips(T,mi,me).map(item).join("")}</ul>`;
+  $("tips").innerHTML=html;
+}
+
+/* ---------- Example photos (Wikimedia Commons, free-licensed, matched by location, time of day, and season) ---------- */
+/* Optional: paste a free Flickr API key here to add Flickr photos (see README notes). Leave empty to use Commons only. */
+const FLICKR_KEY="";
+const stripHtml=x=>x?new DOMParser().parseFromString(String(x),"text/html").body.textContent.trim():"";
+const OK_HOST=/^https:\/\/(upload\.wikimedia\.org|live\.staticflickr\.com|api\.openverse\.org)\//;
+const OK_PAGE=/^https:\/\/(commons\.wikimedia\.org|www\.flickr\.com)\//;
+function mkPhoto(thumb,page,title,artist,license,dto,src){
+  if(!OK_HOST.test(thumb||""))return null;
+  const m=/^(\d{4})[-:](\d{2})[-:](\d{2})[ T](\d{2}):(\d{2})/.exec(dto||"");
+  const mins=m?(+m[4])*60+ +m[5]:null;
+  return{thumb,page:OK_PAGE.test(page||"")?page:null,title,artist,license,src,
+    date:m?`${m[1]}-${m[2]}-${m[3]}`:null,mins:mins===0?null:mins};
+}
+function parseCommons(pg){
+  const ii=pg.imageinfo&&pg.imageinfo[0];
+  if(!ii||ii.mime!=="image/jpeg")return null;
+  const md=ii.extmetadata||{};
+  return mkPhoto(ii.thumburl,ii.descriptionurl,(pg.title||"").replace(/^File:/,"").replace(/\.[a-z]+$/i,""),
+    stripHtml(md.Artist&&md.Artist.value),stripHtml(md.LicenseShortName&&md.LicenseShortName.value),
+    md.DateTimeOriginal&&md.DateTimeOriginal.value,"Wikimedia Commons");
+}
+async function fetchCommons(){
+  const q=new URLSearchParams({action:"query",generator:"geosearch",ggscoord:`${S.lat}|${S.lng}`,ggsradius:"10000",ggsnamespace:"6",ggslimit:"50",
+    prop:"imageinfo",iiprop:"url|extmetadata|mime",iiurlwidth:"480",iiextmetadatafilter:"DateTimeOriginal|Artist|LicenseShortName",
+    format:"json",formatversion:"2",origin:"*"});
+  const r=await fetch("https://commons.wikimedia.org/w/api.php?"+q);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const js=await r.json();
+  return((js.query&&js.query.pages)||[]).map(parseCommons).filter(Boolean);
+}
+/* Flickr license ids that allow commercial use: 4 CC BY, 5 CC BY-SA, 7 no known restrictions, 8 US Gov, 9 CC0, 10 Public Domain Mark */
+const FLICKR_LIC={4:"CC BY",5:"CC BY-SA",7:"No known restrictions",8:"US Gov work",9:"CC0",10:"Public domain"};
+async function fetchFlickr(){
+  if(!FLICKR_KEY)return[];
+  const q=new URLSearchParams({method:"flickr.photos.search",api_key:FLICKR_KEY,lat:S.lat,lon:S.lng,radius:"15",radius_units:"km",
+    license:"4,5,7,8,9,10",media:"photos",content_type:"1",safe_search:"1",sort:"interestingness-desc",per_page:"250",
+    extras:"date_taken,owner_name,license,url_m",format:"json",nojsoncallback:"1"});
+  const r=await fetch("https://api.flickr.com/services/rest/?"+q);
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const j=await r.json();
+  if(j.stat!=="ok")throw new Error(j.message||"Flickr error");
+  return j.photos.photo
+    .filter(x=>x.url_m&&String(x.datetakenunknown)!=="1"&&+x.datetakengranularity===0)
+    .map(x=>mkPhoto(x.url_m,`https://www.flickr.com/photos/${x.owner}/${x.id}`,x.title||"Untitled",x.ownername||"",FLICKR_LIC[x.license]||"",x.datetaken,"Flickr"))
+    .filter(Boolean);
+}
+/* Keyless Flickr coverage via Openverse (free CC-licensed index). This is a TEXT search, not a
+   location search — Openverse has no coordinates to check, so a generic place name (a common
+   park or road name shared by many towns, or a word like "skyline" that matches any city) can
+   pull back photos of a different, unrelated place entirely. To guard against that, we require
+   the place's distinctive (uncommon) words to actually appear in a candidate's title before
+   we'll show it, and skip Openverse altogether if the name has no distinctive word to check. */
+const GENERIC_PLACE_WORDS=new Set(["the","of","and","at","in","on","my","location","park","drive","trail","road","rd","lake","point","falls","fall",
+  "bridge","garden","gardens","view","views","overlook","wilderness","national","state","forest","mountain","mountains","mtn","valley","ridge",
+  "creek","river","county","city","town","village","way","place","area","site","north","south","east","west","upper","lower","little","big",
+  "skyline","island","beach","summit","peak","pass","gap","gorge","canyon","hollow","meadow","meadows","preserve","refuge","monument","memorial",
+  "historic","natural","scenic","recreation","area","us","usa","near","spot","near me","street","st","ave","avenue"]);
+function distinctiveWords(name){
+  const words=name.replace(/\(.*?\)/g,"").split(/[,\s]+/).map(w=>w.toLowerCase().replace(/[^a-z]/g,"")).filter(Boolean);
+  return[...new Set(words.filter(w=>w.length>=4&&!GENERIC_PLACE_WORDS.has(w)))];
+}
+async function fetchOpenverse(){
+  if(S.name==="My location")return[];
+  const segs=S.name.replace(/\(.*?\)/g,"").split(",").map(s=>s.trim()).filter(Boolean).slice(0,3);
+  const place=segs.join(" ");
+  const distinct=distinctiveWords(S.name);
+  if(!place||!distinct.length)return[]; // nothing specific enough to verify a match against
+  const titleMatches=title=>{const t=(title||"").toLowerCase();return distinct.some(w=>t.includes(w));};
+  const one=async kind=>{
+    const q=new URLSearchParams({q:`${place} ${kind.toLowerCase()}`,source:"flickr",license_type:"commercial",page_size:"20"});
+    const r=await fetch("https://api.openverse.org/v1/images/?"+q);
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    return(j.results||[]).filter(x=>titleMatches(x.title)).map(x=>{
+      const ph=mkPhoto(x.thumbnail,x.foreign_landing_url,x.title||"Untitled",x.creator||"",
+        x.license?`${String(x.license).toUpperCase()}${x.license_version?" "+x.license_version:""}`:"",null,"Flickr via Openverse");
+      if(ph){ph.textOnly=true;ph.kind=kind;}
+      return ph;
+    }).filter(Boolean);
+  };
+  const [a,b]=await Promise.all([one("Sunset"),one("Sunrise")]);
+  return a.concat(b);
+}
+async function loadPhotos(){
+  const id=++S.photoReq;
+  $("photosSub").textContent="Looking for photos taken near here...";$("photos").innerHTML="";
+  const res=await Promise.allSettled([fetchCommons(),fetchFlickr(),fetchOpenverse()]);
+  if(id!==S.photoReq)return;
+  const errs=res.map((r,i)=>r.status==="rejected"?`${["Commons","Flickr","Openverse"][i]}: ${r.reason&&r.reason.message||r.reason}`:null).filter(Boolean);
+  if(res.every(r=>r.status==="rejected")){S.photos=null;S.photoErr=errs.join("; ");}
+  else{S.photos=res.flatMap(r=>r.status==="fulfilled"?r.value:[]);S.photoErr=errs.join("; ");}
+  renderPhotos();
+}
+const doy=s=>{const[y,m,d]=s.split("-").map(Number);return Math.round((Date.UTC(2001,m-1,d)-Date.UTC(2001,0,1))/DAYMS);};
+const seasonDiff=(a,b)=>{const x=Math.abs(doy(a)-doy(b));return Math.min(x,365-x);};
+const fmtMins=m=>{const h=Math.floor(m/60),mm=m%60;return`${(h%12)||12}:${pad(mm)} ${h<12?"AM":"PM"}`;};
+function matchPhotos(){
+  const out=[];
+  for(const p of S.photos){
+    if(!p.date||p.mins==null)continue;
+    const T=dayTimes(noonFor(p.date,S.lng),S.lat,S.lng);if(!T)continue;
+    const ds=p.mins-minsOfDay(T.sunset,S.tz),dr=p.mins-minsOfDay(T.sunrise,S.tz);
+    let kind=null,off=0;
+    if(ds>=-75&&ds<=50){kind="Sunset";off=Math.abs(ds);}
+    else if(dr>=-50&&dr<=75){kind="Sunrise";off=Math.abs(dr);}
+    if(kind)out.push({...p,kind,season:seasonDiff(p.date,S.date),rank:seasonDiff(p.date,S.date)+off/6});
+  }
+  return out.sort((a,b)=>a.rank-b.rank);
+}
+function renderPhotos(){
+  const sub=$("photosSub"),box=$("photos");
+  if(S.photos===undefined)return;
+  if(S.photos===null){sub.textContent="Could not load example photos right now. ("+S.photoErr+")";box.innerHTML="";return;}
+    const matched=matchPhotos(),good=matched.filter(p=>p.season<=60),extra=S.photos.filter(p=>p.textOnly);
+  let list,note;
+  if(good.length){list=good.slice(0,6);note="Photos taken near here around sunrise or sunset in a similar season. Weather is not matched, so use them for light and composition ideas.";}
+  else if(matched.length){list=matched.slice(0,6);note="Sunrise and sunset photos from near here, but from other seasons. Weather is not matched.";}
+  else{list=S.photos.filter(p=>!p.textOnly).slice(0,6);note="No sunrise or sunset photos with usable timestamps were found here, so these are photos of the area.";}
+  if(list.length<6&&extra.length){
+    const seen=new Set(list.map(p=>p.thumb));
+    list=list.concat(extra.filter(p=>!seen.has(p.thumb)).slice(0,6-list.length));
+    note+=" Photos marked 'not time-checked' come from a text search of the place name.";
+  }
+  if(!list.length){sub.textContent="No free-licensed photos found for this spot. Try a more popular viewpoint.";box.innerHTML="";return;}
+  sub.textContent=note;
+  box.innerHTML=list.map(p=>{
+    const when=p.textOnly?`${p.kind} (not time-checked)`:p.kind?`${p.kind}, ${p.date}`:(p.date||"");
+    const link=p.page?`<a href="${esc(p.page)}" target="_blank" rel="noopener noreferrer">`:"<span>",end=p.page?"</a>":"</span>";
+    return `<figure>${link}<img loading="lazy" src="${esc(p.thumb)}" alt="${esc(p.title)}">${end}
+      <figcaption><strong>${esc(when||p.title)}</strong>${esc(p.title)}<br>${p.artist?esc(p.artist)+" ":""}${p.license?"("+esc(p.license)+") ":""}via ${esc(p.src)}</figcaption></figure>`;
+  }).join("");
+}
+
+/* ---------- Events ---------- */
+PRESETS.forEach((p,i)=>{const o=document.createElement("option");o.value=i;o.textContent=p.n;$("preset").appendChild(o);});
+$("preset").addEventListener("change",e=>{const p=PRESETS[e.target.value];$("results").innerHTML="";loadPlace(p.lat,p.lng,p.n,p.tips);});
+$("date").addEventListener("change",e=>{if(e.target.value){S.date=e.target.value;render();}});
+$("today").addEventListener("click",()=>{S.date=todayIn(S.tz);$("date").value=S.date;if(S.lat!=null)render();});
+$("week").addEventListener("click",e=>{const b=e.target.closest(".day");if(b){S.date=b.dataset.d;$("date").value=S.date;render();}});
+$("geo").addEventListener("click",()=>{
+  if(!navigator.geolocation){setStatus("Location is not available in this browser.");return;}
+  setStatus("Finding you...");
+  navigator.geolocation.getCurrentPosition(p=>{$("results").innerHTML="";loadPlace(p.coords.latitude,p.coords.longitude,"My location");},
+    ()=>setStatus("Could not get your location. Try searching for a place instead."),{timeout:10000});
+});
+$("searchForm").addEventListener("submit",async e=>{
+  e.preventDefault();const q=$("q").value.trim();if(!q)return;
+  setStatus("Searching...");$("results").innerHTML="";
+  try{
+    const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q="+encodeURIComponent(q));
+    const js=await r.json();
+    if(!js.length){setStatus("No matches. Try a nearby town or a more general name.");return;}
+    setStatus("Pick the best match:");
+    $("results").innerHTML=js.map((x,i)=>`<li><button type="button" data-i="${i}">${esc(x.display_name)}</button></li>`).join("");
+    $("results").onclick=ev=>{const b=ev.target.closest("button");if(!b)return;const x=js[+b.dataset.i];
+      $("results").innerHTML="";loadPlace(+x.lat,+x.lon,x.display_name.split(",").slice(0,2).join(",").trim());};
+  }catch(err){setStatus("Search failed. Check your connection, or pick a favorite spot.");}
+});
+
+if(FLICKR_KEY)$("flickrCredit").textContent=" This product uses the Flickr API but is not endorsed or certified by SmugMug, Inc.";
+/* Start with the first favorite spot */
+loadPlace(PRESETS[0].lat,PRESETS[0].lng,PRESETS[0].n,PRESETS[0].tips);
+</script>
+</body>
+</html>

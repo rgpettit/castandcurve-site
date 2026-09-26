@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cast &amp; Curve</title>
+<meta name="description" content="Creative, editorial &amp; themed portrait photography, DMV based.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --body:"Lora",Georgia,"Times New Roman",serif;
+  --bg:#1c1c1c;--panel:#262626;--line:#3d3d3d;--text:#f3f3f3;--muted:#a9a9a9;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);font:17px/1.6 var(--body);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 20px;text-align:center;
+}
+.wrap{max-width:560px}
+h1{font:400 3.2rem/1.15 var(--serif);margin:0 0 6px;letter-spacing:.01em}
+h1 span{font-style:italic}
+.tagline{color:var(--muted);font-style:italic;font-size:1.15rem;margin:0 0 8px}
+.location{color:var(--muted);font-size:.9rem;letter-spacing:.08em;text-transform:uppercase;margin:0 0 40px}
+.links{display:flex;flex-direction:column;gap:14px;align-items:center}
+.btn{
+  display:inline-block;min-width:240px;color:var(--text);text-decoration:none;font-weight:600;
+  font-size:1rem;border:1px solid var(--text);border-radius:999px;padding:13px 28px;
+  transition:background .15s,color .15s;
+}
+.btn:hover,.btn:active{background:var(--text);color:var(--bg)}
+.btn.ghost{border-color:var(--line);color:var(--muted)}
+.btn.ghost:hover{background:var(--line);color:var(--text)}
+.note{color:var(--muted);font-size:.85rem;margin-top:44px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cast &amp; <span>Curve</span></h1>
+  <p class="tagline">Creative, editorial &amp; themed portrait photography</p>
+  <p class="location">DMV &middot; Trade &amp; paid shoots</p>
+  <div class="links">
+    <a class="btn" href="https://www.instagram.com/castandcurvephotos/" target="_blank" rel="noopener noreferrer">Follow @castandcurvephotos</a>
+    <a class="btn" href="planner.html">Open the Light Planner</a>
+    <a class="btn ghost" href="card.html">Digital business card</a>
+  </div>
+  <p class="note">Portfolio coming soon.<br>For bookings and collaborations, DM on Instagram.</p>
+</div>
+</body>
+</html>
